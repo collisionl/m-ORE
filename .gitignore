@@ -1,0 +1,4 @@
+tests/*
+build/*
+cash_scheme/tests/*
+cash_scheme/build/*
