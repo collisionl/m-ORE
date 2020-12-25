@@ -5,7 +5,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// 新方案里不需要带密钥的hmac，只用sha-256就够了
 int sha_256(byte* dst, uint32_t dstlen, byte* src, uint32_t srclen) {
   if (dstlen != SHA256_OUTPUT_BYTES) {
     return ERROR_DSTLEN_INVALID;
@@ -19,6 +18,7 @@ int sha_256(byte* dst, uint32_t dstlen, byte* src, uint32_t srclen) {
   return ERROR_NONE;
 }
 
+// HMAC_SHA256 as the hmac
 int HMAC_SHA256(byte* dst, uint32_t dstlen, byte* key, byte* src, uint32_t srclen) {
   if (dstlen != PRF_OUTPUT_BYTES) {
     return ERROR_DSTLEN_INVALID;
@@ -29,17 +29,3 @@ int HMAC_SHA256(byte* dst, uint32_t dstlen, byte* key, byte* src, uint32_t srcle
 
   return ERROR_NONE;
 }
-
-// TEST 输出一个byte
-void printf_bin_8(unsigned char* num)
-{
-    for (int k = 7; k >= 0; k--) //处理8个位
-    {
-        if (*num & (1 << k))
-            printf("1");
-        else
-            printf("0");
-    }
-    printf("\r\n");
-}
-// TEST

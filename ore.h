@@ -10,32 +10,28 @@
 
 static const int PLAINTEXT_BIT = 64;
 
-// 定义ore_params，固定nbits，也就是密文的比特长度
 typedef struct {
   bool initialized; // whether or not these parameters have been initialized
   uint32_t nbits;   // the number of bits in the plaintext elements
 } ore_params[1];
 
-// 定义密文，最长128，包含了g1^r1
 typedef struct {
   bool initialized;
   ore_params params;
   element_t bit_ctxt[PLAINTEXT_BIT];
-  element_t g1r1;             // 存g1r1用在比较阶段
+  element_t g1r1;
 } ore_ciphertext[1];
 
-// 定义token的bit的左右
 typedef struct {
-  element_t add_one;        // 存放ui + 1的值
-  element_t minus_one;      // 存放ui - 1的值
+  element_t add_one;
+  element_t minus_one;
 } ore_token_bit[1];
 
-// 定义token，最长128，包含了g2^r2
 typedef struct {
   bool initialized;
   ore_params params;
   ore_token_bit token_bit[PLAINTEXT_BIT];
-  element_t g2r2;               // 存g2r2用来计算
+  element_t g2r2;
 } ore_token[1];
 
 /**

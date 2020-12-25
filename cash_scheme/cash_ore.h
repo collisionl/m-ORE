@@ -9,7 +9,6 @@
 
 static const int PLAINTEXT_BIT = 64;
 
-// 定义ore_params，固定nbits，也就是密文的比特长度
 typedef struct {
   bool initialized; // whether or not these parameters have been initialized
   uint32_t nbits;   // the number of bits in the plaintext elements
@@ -22,7 +21,6 @@ typedef struct {
   element_t cipher_d;
 } cipher_bit[1];
 
-// 定义密文，最长128，包含了g1^r1
 typedef struct {
   bool initialized;
   ore_params params;

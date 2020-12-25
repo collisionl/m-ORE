@@ -83,22 +83,19 @@ static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
 
   uint32_t nbits = ctxt->params->nbits;
 
-  // 密文字节, 32的nbits情况下是4byte
   uint32_t nbytes = (nbits + 7) / 8;
-  
-  // 生成了大小为8 byte数组, 并把这个数组每一个元素都赋为10进制的0, 每一个byte赋为0
+
   byte prf_input_buf[sizeof(uint32_t) + nbytes];
   memset(prf_input_buf, 0, sizeof(prf_input_buf));
 
-  // 4byte大小的消息buf
   byte msgbuf[nbytes];
-  // 设置32大小的byte类型数组来存储sha的输出
+
   byte prf_output_buf[SHA256_OUTPUT_BYTES];
   byte prf_input_buf_2[SHA256_OUTPUT_BYTES];
   byte key[SHA256_OUTPUT_BYTES];
   memset(key, 0, sizeof(key));
   element_to_bytes(key, k);
-  // printf_bin_8(&key[0]);
+
   // drop any extra bytes that have been provided
   if (buflen >= nbytes) {
     memcpy(msgbuf, buf, nbytes);
@@ -115,23 +112,15 @@ static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
                    FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",16);
 
 
-  // 存储prf的最后结果
   element_t prf_result;
   element_init_Zr(prf_result, pairing);
 
-
-  // index的值代表prf_input_buf[0]的值
   uint32_t *index = (uint32_t *)prf_input_buf;
 
-  // value[0] == prf_input_buf[sizeof(uint32_t)] == prf_input_buf[4]
-  // 最大支持2^8-1, 256bit长的数据
   byte *value = &prf_input_buf[sizeof(uint32_t)];
 
-  // 计算偏移
   uint32_t offset = (8 - (nbits % 8)) % 8;
 
-  // 定义一个数组, 给index顺序赋值, rando随机赋值,
-  // 随后给rando排序就得到打乱的index, 每次传入index作为此轮的存储位置
   rand_permute *permute = (rand_permute *)malloc(sizeof(rand_permute) * nbits);
   for (uint32_t i = 0; i < nbits; i++) {
     permute[i]->index = i;
@@ -150,17 +139,13 @@ static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
     element_pow_zn(ctxt->cipher[permute[i]->index]->cipher_c, g2, r2);
 
     // get the current bit of the message
-    // 因为是小端序, 每次加密先算好这次加密的密文在msgbuf的哪个位置
     uint32_t byteind = nbytes - 1 - (i + offset) / 8;
 
-    // mask表示这一个byte中对应位置的比特密文的二进制值是不是1
     byte mask = msgbuf[byteind] & (1 << ((7 - (i + offset)) % 8));
 
-    // 每次prf_input_buf[0]是新的i的值, 从0开始
     sha_256(prf_output_buf, sizeof(prf_output_buf),
             prf_input_buf, sizeof(prf_input_buf));
 
-    // 把第一次的输出作为第二次的输入
     memcpy(prf_input_buf_2, prf_output_buf, 32);
 
     if (mask > 0) {
@@ -181,11 +166,9 @@ static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
     mpz_and(SHA_to_mpz, SHA_to_mpz, SHA_256_MAX);
     mpz_export(prf_input_buf_2, NULL, 1, 1, -1, 0, SHA_to_mpz);
 
-    // 计算第二次hash并用结果生成Zr中元素以用在后面的模指数运算中, 覆盖第一次prf运算的结果
     HMAC_SHA256(prf_output_buf, sizeof(prf_output_buf), key,
             prf_input_buf_2, sizeof(prf_input_buf_2));
 
-    // 从hash的结果转到Zr上
     element_from_hash(prf_result, prf_output_buf, 32);
     element_pow_zn(ctxt->cipher[permute[i]->index]->cipher_d, ctxt->cipher[permute[i]->index]->cipher_c, prf_result);
   
@@ -212,7 +195,7 @@ int ore_encryption(ore_ciphertext ctxt, uint64_t msg, pairing_t pairing,\
 }
 
 int ore_compare(int *result_p, ore_ciphertext ctxt1, ore_ciphertext ctxt2, pairing_t pairing) {
-  // 首先检查两个长度是否相等, 是否都初始化过了
+
   if ((ctxt1->params->initialized != ctxt2->params->initialized) ||
       (ctxt1->params->nbits != ctxt2->params->nbits)) {
     return ERROR_PARAMS_MISMATCH;

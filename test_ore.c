@@ -16,25 +16,19 @@
  * encryption or comparison phase
  */
 static int check_ore(pairing_t pairing, element_t g1, element_t g2, int err) {
-    // 这里nbit表示明文长度
+    // length of plaintext
     uint32_t nbits = 64;
 
-    // 随机生成明文, 写模数是为了正确判断两个数的大小
-    // 如果nbits大于31之后, 再模之后变成了0, 如果把1改成longlong类型再对其作31以上的移位就正常了
-    uint64_t n1 = rand() ;//% (((uint64_t) 1) << nbits);   //0x0314620303146203;//% (1LL << nbits);
-    uint64_t n2 = rand() ;//% (((uint64_t) 1) << nbits);   //0x0314695103146203;//% (1LL << nbits);
-    // OUTPUT输出随机产生的n1和n2
-    // printf("n1:0x%016lx\n", n1);
-    // printf("n2:0x%016lx\n", n2);
-    // OUTPUT
+    // Randomly generate plaintext
+    uint64_t n1 = rand();
+    uint64_t n2 = rand();
 
-    // 0是相等, -1是n1 < n2, 1是n1 > n2
+    // 0 is equal, -1 is n1 < n2, 1 is n1 > n2
     int cmp = (n1 < n2) ? -1 : 1;
     if (n1 == n2) {
         cmp = 0;
     }
 
-    // 初始化密文的各种参数
     ore_params params;
     ERR_CHECK(init_ore_params(params, nbits));
 
@@ -42,23 +36,16 @@ static int check_ore(pairing_t pairing, element_t g1, element_t g2, int err) {
     element_init_Zr(k, pairing);
     element_random(k);
 
-    
-    // 初始化密文
     ore_ciphertext ctxt;
     ERR_CHECK(init_ore_ciphertext(ctxt, params, pairing, g1));
 
-    // 初始化token
     ore_token token;
     ERR_CHECK(init_ore_token(token, params, pairing, g2));
 
-    // 加密
     ERR_CHECK(ore_encryption(ctxt, n1, pairing, k));
- 
-    // 产生token
+
     ERR_CHECK(ore_token_gen(token, n2, pairing, k));
 
-
-    // 比较, 使用&取地址, 传入后使用指针修改res
     int ret = 0;
     int res;
     ERR_CHECK(ore_compare(&res, ctxt, token, pairing));
@@ -69,11 +56,9 @@ static int check_ore(pairing_t pairing, element_t g1, element_t g2, int err) {
         ret = -1; // fail
     }
 
-    // 清除内存
     ERR_CHECK(clear_ore_ciphertext(ctxt));
     ERR_CHECK(clear_ore_token(token));
 
-    // 清除key
     element_clear(k);
     return ret;
 }
