@@ -21,22 +21,19 @@ Run the benchmark by
 ``` shell
 ./tests/time_ore < location_of_your_pbc_library/pbc-0.5.14/param/d159.param
 ``` 
-## Configuration ##
 
-See `flags.h` to implement the random permute or fixed permute.
+## Cash et al.'s scheme and Li et al.'s scheme ##
+We also implemented the scheme of Cash et al. at /cash_scheme and the scheme of Li et al. at /li_scheme.
 
-## Cash et al. scheme ##
-We also implemented the scheme of Cash et al. at /cash_scheme.
-
-See the paper at [ePrint](https://eprint.iacr.org/2018/698.pdf).
+See the paper of Cash et al. at [ePrint](https://eprint.iacr.org/2018/698.pdf) and paper of Li et al. at [ACM](https://dl.acm.org/doi/abs/10.1145/3321705.3329829).
 
 Run the correctness check by 
 ``` shell
-cd cash_scheme
+cd cash_scheme (or li_scheme)
 make
-./tests/test_cash_ore < location_of_your_pbc_library/pbc-0.5.14/param/d159.param
+./tests/test_cash_ore (or ./tests/test_li_ore) < location_of_your_pbc_library/pbc-0.5.14/param/d159.param
 ``` 
 Run the benchmark by
 ``` shell
-./tests/time_cash_ore < location_of_your_pbc_library/pbc-0.5.14/param/d159.param
+./tests/time_cash_ore (or ./tests/time_li_ore) < location_of_your_pbc_library/pbc-0.5.14/param/d159.param
 ``` 

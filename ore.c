@@ -96,6 +96,7 @@ int init_ore_token(ore_token token, ore_params params, pairing_t pairing,\
  * @param ctxt    The ciphertext to store the encryption
  * @param buf     The input in a byte array, encoded in little-endian
  * @param buflen  The length of the byte array input
+ * @param pairing pairing
  * @param k       The data key
  *
  * @return ERROR_NONE on success
@@ -155,7 +156,6 @@ static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
 
   uint32_t offset = (8 - (nbits % 8)) % 8;
 
-#ifdef RANDOM_PERMUTE
   // Generate a random array
   rand_permute *permute = (rand_permute *)malloc(sizeof(rand_permute) * nbits);
   for (uint32_t i = 0; i < nbits; i++) {
@@ -163,7 +163,6 @@ static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
     permute[i]->rando = rand();
   }
   qsort(permute, nbits, sizeof(permute), comp);
-#endif
 
   for (uint32_t i = 0; i < nbits; i++) {
     // get the current bit of the message
@@ -188,19 +187,14 @@ static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
       mpz_export(prf_input_buf_2, NULL, 1, 1, -1, 0, SHA_to_mpz);
     }
 
-    // Calculate the second hash and use the result to generate elements in Zr 
+    // Compute the second hash and use the result to generate elements in Zr 
     // to be used in the subsequent modular exponential operation, covering the result of the first prf operation
     sha_256(prf_output_buf, sizeof(prf_output_buf),
             prf_input_buf_2, sizeof(prf_input_buf_2));
 
     // hash to Zr
     element_from_hash(prf_result, prf_output_buf, 32);
-
-#ifdef RANDOM_PERMUTE
     element_pow_zn(ctxt->bit_ctxt[permute[i]->index], g1r1k, prf_result);
-#else
-    element_pow_zn(ctxt->bit_ctxt[i], g1r1k, prf_result);
-#endif
 
     // add the current bit of the message to the running prefix
     value[byteind] |= mask;
@@ -209,9 +203,7 @@ static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
     (*index)++;
   }
 
-#ifdef RANDOM_PERMUTE
   free(permute);
-#endif
   mpz_clear(SHA_to_mpz);
   mpz_clear(SHA_256_MAX);
   element_clear(g1r1k);
@@ -287,14 +279,12 @@ static int _ore_token_gen(ore_token token, byte *buf, uint32_t buflen,\
 
   uint32_t offset = (8 - (nbits % 8)) % 8;
 
-#ifdef RANDOM_PERMUTE
   rand_permute *permute = (rand_permute *)malloc(sizeof(rand_permute) * nbits);
   for (uint32_t i = 0; i < nbits; i++) {
     permute[i]->index = i;
     permute[i]->rando = rand();
   }
   qsort(permute, nbits, sizeof(permute), comp);
-#endif
 
   for (uint32_t i = 0; i < nbits; i++) {
     // get the current bit of the message
@@ -311,12 +301,7 @@ static int _ore_token_gen(ore_token token, byte *buf, uint32_t buflen,\
               prf_input_buf_2, sizeof(prf_input_buf_2));
       element_from_hash(prf_result, prf_output_buf, 32);
 
-
-#ifdef RANDOM_PERMUTE
       element_pow_zn(token->token_bit[permute[i]->index]->minus_one, g2r2k, prf_result);
-#else
-      element_pow_zn(token->token_bit[i]->minus_one, g2r2k, prf_result);
-#endif
 
       mpz_import(SHA_to_mpz, 32, 1, 1, -1, 0, prf_input_buf_2);
       mpz_add_ui(SHA_to_mpz, SHA_to_mpz, 2);
@@ -325,12 +310,7 @@ static int _ore_token_gen(ore_token token, byte *buf, uint32_t buflen,\
       sha_256(prf_output_buf, sizeof(prf_output_buf),
               prf_input_buf_2, sizeof(prf_input_buf_2));
       element_from_hash(prf_result, prf_output_buf, 32);
-
-#ifdef RANDOM_PERMUTE
       element_pow_zn(token->token_bit[permute[i]->index]->add_one, g2r2k, prf_result);
-#else
-      element_pow_zn(token->token_bit[i]->add_one, g2r2k, prf_result);
-#endif
     } else {
       mpz_import(SHA_to_mpz, 32, 1, 1, -1, 0, prf_output_buf);
       mpz_add_ui(SHA_to_mpz, SHA_to_mpz, 1);
@@ -340,11 +320,7 @@ static int _ore_token_gen(ore_token token, byte *buf, uint32_t buflen,\
               prf_input_buf_2, sizeof(prf_input_buf_2));
       element_from_hash(prf_result, prf_output_buf, 32);
 
-#ifdef RANDOM_PERMUTE
       element_pow_zn(token->token_bit[permute[i]->index]->add_one , g2r2k, prf_result);
-#else
-      element_pow_zn(token->token_bit[i]->add_one , g2r2k, prf_result);
-#endif
 
       mpz_sub_ui(SHA_to_mpz, SHA_to_mpz, 2);
       mpz_and(SHA_to_mpz, SHA_to_mpz, SHA_256_MAX);
@@ -353,11 +329,7 @@ static int _ore_token_gen(ore_token token, byte *buf, uint32_t buflen,\
               prf_input_buf_2, sizeof(prf_input_buf_2));
       element_from_hash(prf_result, prf_output_buf, 32);
 
-#ifdef RANDOM_PERMUTE
       element_pow_zn(token->token_bit[permute[i]->index]->minus_one , g2r2k, prf_result);
-#else
-      element_pow_zn(token->token_bit[i]->minus_one , g2r2k, prf_result);
-#endif
     }
     
     // add the current bit of the message to the running prefix
@@ -367,9 +339,7 @@ static int _ore_token_gen(ore_token token, byte *buf, uint32_t buflen,\
     (*index)++;
   }
   
-#ifdef RANDOM_PERMUTE
   free(permute);
-#endif
   mpz_clear(SHA_to_mpz);
   mpz_clear(SHA_256_MAX);
   element_clear(g2r2k);
@@ -403,27 +373,29 @@ int ore_compare(int *result_p, ore_ciphertext ctxt, ore_token token, pairing_t p
   element_init_GT(temp3, pairing);
 
   uint32_t nbits = token->params->nbits;
-#ifdef RANDOM_PERMUTE
+
   // Because the ciphertext and token have been randomly permuted,
   // this test function requires O(n^2) compare complexity, but
-  // we only need 3n pairing because we can compute and store
+  // it only need 3n pairing because we can compute and store
   // pairing results for token before perform the real compare.
 
-  // temporarily store pairing results for token.
+  // preprocessing
+  pairing_pp_t pp;
+  pairing_pp_init(pp, ctxt->g1r1, pairing);
+  // temporarily store pairing results for token and ctxt.
   ore_token_bit token_result[nbits];
   for (uint32_t i = 0; i < nbits; i++) {
     element_init_GT(token_result[i]->add_one, pairing);
     element_init_GT(token_result[i]->minus_one, pairing);
-    pairing_apply(token_result[i]->add_one, ctxt->g1r1, token->token_bit[i]->add_one, pairing);
-    pairing_apply(token_result[i]->minus_one, ctxt->g1r1, token->token_bit[i]->minus_one, pairing);
+    pairing_pp_apply(token_result[i]->add_one, token->token_bit[i]->add_one, pp);
+    pairing_pp_apply(token_result[i]->minus_one, token->token_bit[i]->minus_one, pp);
   }
+  pairing_pp_clear(pp);
 
   bool break_flag = false;
   for (uint32_t i = 0; i < nbits; i++) {
     pairing_apply(temp1, ctxt->bit_ctxt[i], token->g2r2, pairing);
     for (uint32_t j = 0; j < nbits; j++) {
-      // pairing_apply(temp2, ctxt->g1r1, token->token_bit[j]->add_one, pairing);
-      // pairing_apply(temp3, ctxt->g1r1, token->token_bit[j]->minus_one, pairing);
       if (!element_cmp(temp1, token_result[j]->add_one)) {
         res = 1;
         break_flag = true;
@@ -444,32 +416,6 @@ int ore_compare(int *result_p, ore_ciphertext ctxt, ore_token token, pairing_t p
     element_clear(token_result[i]->add_one);
     element_clear(token_result[i]->minus_one);
   }
-#else
-  // When using fixed permutation, we didn't permute the ciphertext and token
-  // using the same permutation, instead, given this implementation is only a
-  // proof of concept and benchmarking tool for our cryptographic primitives,
-  // we implement the permutation here to achieve the same effect.
-  rand_permute *permute = (rand_permute *)malloc(sizeof(rand_permute) * nbits);
-  for (uint32_t i = 0; i < nbits; i++) {
-    permute[i]->index = i;
-    permute[i]->rando = rand();
-  }
-  qsort(permute, nbits, sizeof(permute), comp);
-  for (uint32_t i = 0; i < nbits; i++) {
-    pairing_apply(temp1, ctxt->bit_ctxt[permute[i]->index], token->g2r2, pairing);
-    pairing_apply(temp2, ctxt->g1r1, token->token_bit[permute[i]->index]->add_one, pairing);
-    pairing_apply(temp3, ctxt->g1r1, token->token_bit[permute[i]->index]->minus_one, pairing);
-    if (!element_cmp(temp1, temp2)) {
-      res = 1;
-      break;
-    }
-    if (!element_cmp(temp1, temp3)) {
-      res = -1;
-      break;
-    }
-  }
-  free(permute);
-#endif
 
   *result_p = res;
   element_clear(temp1);

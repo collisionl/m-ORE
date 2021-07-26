@@ -73,6 +73,8 @@ int init_ore_ciphertext(ore_ciphertext ctxt, ore_params params,
  * @param msg      The input in uint64_t format.
  * @param pairing  pairing
  * @param k        key k
+ * @param g1        generator of group G1
+ * @param g2        generator of group G2
  * 
  * @return ERROR_NONE on success
  */
@@ -86,11 +88,11 @@ int ore_encryption(ore_ciphertext ctxt, uint64_t msg, pairing_t pairing,
  * The ciphertexts and the token must have been initialized
  * before calling this function.
  *
- * @param result_p A pointer containing the result of the comparison, which is 1
- *                 if ctxt is greater than token, -1 if ctxt is less than token,
- *                 and 0 if they encrypt equal plaintexts.
- * @param ctxt1 ctxt2    The ciphertext
- * @param pairing  pairing
+ * @param result_p  A pointer containing the result of the comparison, which is 1
+ *                  if ctxt is greater than token, -1 if ctxt is less than token,
+ *                  and 0 if they encrypt equal plaintexts.
+ * @param ctxt1&2   The ciphertext
+ * @param pairing   pairing
  *
  * @return ERROR_NONE on success
  */
@@ -108,9 +110,9 @@ int clear_ore_ciphertext(ore_ciphertext ctxt);
 /**
  * Clears a pairing params including g1 and g2.
  *
- * @param token    The token to clear
- * @param g1       generator of group G1
- * @param g2       generator of group G2
+ * @param pairing   pairing
+ * @param g1        generator of group G1
+ * @param g2        generator of group G2
  * 
  * @return ERROR_NONE on success
  */

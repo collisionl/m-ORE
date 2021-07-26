@@ -72,7 +72,9 @@ int init_ore_ciphertext(ore_ciphertext ctxt, ore_params params,\
  * @param buf     The input in a byte array, encoded in little-endian
  * @param buflen  The length of the byte array input
  * @param k       The data key
- *
+ * @param g1      generator of group G1
+ * @param g2      generator of group G2
+ * 
  * @return ERROR_NONE on success
  */
 static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\

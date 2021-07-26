@@ -1,6 +1,5 @@
 #include "ore.h"
 #include "errors.h"
-#include "flags.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -17,11 +16,11 @@
  */
 static int check_ore(pairing_t pairing, element_t g1, element_t g2, int err) {
     // length of plaintext
-    uint32_t nbits = 64;
+    uint32_t nbits = 32;
 
     // Randomly generate plaintext
-    uint64_t n1 = rand();
-    uint64_t n2 = rand();
+    uint64_t n1 = rand() % (1 << nbits);
+    uint64_t n2 = rand() % (1 << nbits);
 
     // 0 is equal, -1 is n1 < n2, 1 is n1 > n2
     int cmp = (n1 < n2) ? -1 : 1;
@@ -66,11 +65,7 @@ static int check_ore(pairing_t pairing, element_t g1, element_t g2, int err) {
 int main(int argc, char **argv) {
     srand((unsigned)time(NULL));
 
-#ifdef RANDOM_PERMUTE
-    printf("Testing ORE with random permutation\n");
-#else
-    printf("Testing ORE with fixed permutation\n");
-#endif
+    printf("Testing ORE...\n");
 
     fflush(stdout);
 

@@ -1,6 +1,5 @@
-#include "cash_ore.h"
+#include "li_ore.h"
 #include "./../errors.h"
-
 
 #include <stdint.h>
 #include <stdio.h>
@@ -16,7 +15,6 @@
  * encryption or comparison phase
  */
 static int check_ore(pairing_t pairing, element_t g1, element_t g2, int err) {
-    // test 32-bit ctxt, can be modified up to 64
     uint32_t nbits = 32;
 
     uint64_t n1 = rand() % (1 << nbits);
@@ -31,22 +29,29 @@ static int check_ore(pairing_t pairing, element_t g1, element_t g2, int err) {
     ore_params params;
     ERR_CHECK(init_ore_params(params, nbits));
 
-    element_t k;
-    element_init_Zr(k, pairing);
-    element_random(k);
+    element_t a,x;
+    element_init_Zr(a, pairing);
+    element_init_Zr(x, pairing);
+    element_random(a);
+    element_random(x);
 
     ore_ciphertext ctxt1;
-    ERR_CHECK(init_ore_ciphertext(ctxt1, params, pairing));
-
+    ERR_CHECK(init_ore_ciphertext(ctxt1, params, pairing, g1));
     ore_ciphertext ctxt2;
-    ERR_CHECK(init_ore_ciphertext(ctxt2, params, pairing));
+    ERR_CHECK(init_ore_ciphertext(ctxt2, params, pairing, g1));
 
-    ERR_CHECK(ore_encryption(ctxt1, n1, pairing, k, g1, g2));
-    ERR_CHECK(ore_encryption(ctxt2, n2, pairing, k, g1, g2));
+    ore_token token;
+    ERR_CHECK(init_ore_token(token, pairing, g2));
+
+    ERR_CHECK(ore_encryption(ctxt1, n1, pairing, g1, a, x));
+    ERR_CHECK(ore_encryption(ctxt2, n2, pairing, g1, a, x));
+    
+    ERR_CHECK(ore_token_gen(token, pairing, g2, a, x));
+
 
     int ret = 0;
     int res;
-    ERR_CHECK(ore_compare(&res, ctxt1, ctxt2, pairing));
+    ERR_CHECK(ore_compare(&res, ctxt1, ctxt2, token, pairing));
     if (res == cmp) {
         ret = 0;  // success
     }
@@ -56,16 +61,17 @@ static int check_ore(pairing_t pairing, element_t g1, element_t g2, int err) {
 
     ERR_CHECK(clear_ore_ciphertext(ctxt1));
     ERR_CHECK(clear_ore_ciphertext(ctxt2));
+    ERR_CHECK(clear_ore_token(token));
 
-    element_clear(k);
+    element_clear(a);
+    element_clear(x);
     return ret;
 }
 
 int main(int argc, char **argv) {
     srand((unsigned)time(NULL));
 
-    printf("Testing ORE\n");
-
+    printf("Testing ORE...\n");
 
     fflush(stdout);
 

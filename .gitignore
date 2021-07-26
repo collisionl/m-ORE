@@ -2,3 +2,7 @@ tests/*
 build/*
 cash_scheme/tests/*
 cash_scheme/build/*
+li_scheme/tests/*
+li_scheme/build/*
+*.sh
+*.o
