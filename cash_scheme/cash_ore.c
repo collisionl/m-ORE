@@ -1,4 +1,4 @@
-#include "crypto.h"
+#include "./../crypto.h"
 #include "./../errors.h"
 #include "cash_ore.h"
 
@@ -94,7 +94,7 @@ static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
 
   byte prf_output_buf[SHA256_OUTPUT_BYTES];
   byte prf_input_buf_2[SHA256_OUTPUT_BYTES];
-  byte key[SHA256_OUTPUT_BYTES];
+  byte key[PRF_OUTPUT_BYTES];
   memset(key, 0, sizeof(key));
   element_to_bytes(key, k);
 

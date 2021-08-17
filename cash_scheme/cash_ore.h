@@ -1,7 +1,7 @@
 #ifndef __ORE_H__
 #define __ORE_H__
 
-#include "crypto.h"
+#include "./../crypto.h"
 #include "./../errors.h"
 
 #include <pbc/pbc.h>

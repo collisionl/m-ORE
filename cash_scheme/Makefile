@@ -7,7 +7,7 @@ LDPATH = -L/usr/local/lib
 BUILD = build
 TESTS = tests
 
-SRC = crypto.c cash_ore.c
+SRC = ./../crypto.c cash_ore.c
 TESTPROGS = test_cash_ore time_cash_ore
 
 OBJPATHS = $(patsubst %.c,$(BUILD)/%.o, $(SRC))
@@ -31,3 +31,4 @@ $(TESTS)/%: %.c $(OBJPATHS) $(TESTS)
 
 clean:
 	rm -rf $(BUILD) $(TESTS) *~
+	rm -f crypto.o

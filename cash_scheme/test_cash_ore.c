@@ -1,7 +1,6 @@
 #include "cash_ore.h"
 #include "./../errors.h"
 
-
 #include <stdint.h>
 #include <stdio.h>
 

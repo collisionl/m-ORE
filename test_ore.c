@@ -31,19 +31,23 @@ static int check_ore(pairing_t pairing, element_t g1, element_t g2, int err) {
     ore_params params;
     ERR_CHECK(init_ore_params(params, nbits));
 
-    element_t k;
-    element_init_Zr(k, pairing);
-    element_random(k);
+    element_t k1, k21, k22;
+    element_init_Zr(k1, pairing);
+    element_init_Zr(k21, pairing);
+    element_init_Zr(k22, pairing);
+    element_random(k1);
+    element_random(k21);
+    element_random(k22);
 
     ore_ciphertext ctxt;
-    ERR_CHECK(init_ore_ciphertext(ctxt, params, pairing, g1));
+    ERR_CHECK(init_ore_ciphertext(ctxt, params, pairing, g1, k21));
 
     ore_token token;
-    ERR_CHECK(init_ore_token(token, params, pairing, g2));
+    ERR_CHECK(init_ore_token(token, params, pairing, g2, k22));
 
-    ERR_CHECK(ore_encryption(ctxt, n1, pairing, k));
+    ERR_CHECK(ore_encryption(ctxt, n1, pairing, k1));
 
-    ERR_CHECK(ore_token_gen(token, n2, pairing, k));
+    ERR_CHECK(ore_token_gen(token, n2, pairing, k1));
 
     int ret = 0;
     int res;
@@ -58,7 +62,9 @@ static int check_ore(pairing_t pairing, element_t g1, element_t g2, int err) {
     ERR_CHECK(clear_ore_ciphertext(ctxt));
     ERR_CHECK(clear_ore_token(token));
 
-    element_clear(k);
+    element_clear(k1);
+    element_clear(k21);
+    element_clear(k22);
     return ret;
 }
 

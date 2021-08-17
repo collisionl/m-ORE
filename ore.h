@@ -18,7 +18,7 @@ typedef struct {
   bool initialized;
   ore_params params;
   element_t bit_ctxt[PLAINTEXT_BIT];
-  element_t g1r1;
+  element_t g1r1k21;
 } ore_ciphertext[1];
 
 typedef struct {
@@ -30,7 +30,7 @@ typedef struct {
   bool initialized;
   ore_params params;
   ore_token_bit token_bit[PLAINTEXT_BIT];
-  element_t g2r2;
+  element_t g2r2k22;
 } ore_token[1];
 
 /**
@@ -63,12 +63,13 @@ int init_pairing(pairing_t pairing, element_t g1, element_t g2);
  * @param params   The parameters to initialize the ciphertext with
  * @param pairing  pairing
  * @param g1       generator of group G1
+ * @param k21      hash key k21
  * 
  * @return ERROR_NONE on success, ERROR_CTXT_NOT_INITIALIZED when
  * ctxt is not initialized.
  */
 int init_ore_ciphertext(ore_ciphertext ctxt, ore_params params,
-                        pairing_t pairing, element_t g1);
+                        pairing_t pairing, element_t g1, element_t k21);
 
 /**
  * Initializes a token with the parameters described by params.
@@ -77,12 +78,13 @@ int init_ore_ciphertext(ore_ciphertext ctxt, ore_params params,
  * @param params   The parameters to initialize the ciphertext with
  * @param pairing  pairing
  * @param g2       generator of group G2
+ * @param k22      hash key k22
  *
  * @return ERROR_NONE on success, ERROR_TOKEN_NOT_INITIALIZED when
  * token is not initialized.
  */
 int init_ore_token(ore_token token, ore_params params,
-                   pairing_t pairing, element_t g2);
+                   pairing_t pairing, element_t g2, element_t k22);
 
 /**
  * Function to receive plaintext msg.
@@ -93,26 +95,26 @@ int init_ore_token(ore_token token, ore_params params,
  * @param ctxt     The ciphertext to store the encrypt result.
  * @param msg      The input in uint64_t format.
  * @param pairing  pairing
- * @param k        key k
+ * @param k1       prf key k1
  * 
  * @return ERROR_NONE on success
  */
 int ore_encryption(ore_ciphertext ctxt, uint64_t msg, pairing_t pairing,
-                   element_t k);
+                   element_t k1);
 
 /**
  * Function to receive plaintext msg.
  *
  * Token must also be initialized before calling this function.
  *
- * @param token   The token
- * @param msg     The input in a uint64_t
- * @param pairing pairing
- * @param k       only need key k
+ * @param token    The token
+ * @param msg      The input in a uint64_t
+ * @param pairing  pairing
+ * @param k1       prf key k1
  * 
  * @return ERROR_NONE on success
  */
-int ore_token_gen(ore_token token, uint64_t msg, pairing_t pairing, element_t k);
+int ore_token_gen(ore_token token, uint64_t msg, pairing_t pairing, element_t k1);
 
 /**
  * Performs the comparison of a ciphertexts and a token to determine the ordering 

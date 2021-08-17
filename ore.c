@@ -45,7 +45,7 @@ int init_pairing(pairing_t pairing, element_t g1, element_t g2) {
 }
 
 int init_ore_ciphertext(ore_ciphertext ctxt, ore_params params,\
-                        pairing_t pairing, element_t g1) {
+                        pairing_t pairing, element_t g1, element_t k21) {
   if (ctxt == NULL || params == NULL) {
     return ERROR_NULL_POINTER;
   }
@@ -59,15 +59,17 @@ int init_ore_ciphertext(ore_ciphertext ctxt, ore_params params,\
   element_t r1;
   element_init_Zr(r1, pairing);
   element_random(r1);
-  element_init_G1(ctxt->g1r1, pairing);
-  element_pow_zn(ctxt->g1r1, g1, r1);
+  element_init_G1(ctxt->g1r1k21, pairing);
+  element_pow_zn(ctxt->g1r1k21, g1, r1);
+  element_pow_zn(ctxt->g1r1k21, ctxt->g1r1k21, k21);
+  element_clear(r1);
 
   ctxt->initialized = true;
   return ERROR_NONE;
 }
 
 int init_ore_token(ore_token token, ore_params params, pairing_t pairing,\
-                   element_t g2) {
+                   element_t g2, element_t k22) {
   if (token == NULL || params == NULL) {
     return ERROR_NULL_POINTER;
   }
@@ -81,9 +83,11 @@ int init_ore_token(ore_token token, ore_params params, pairing_t pairing,\
   
   element_t r2;
   element_init_Zr(r2, pairing);
-  element_init_G2(token->g2r2, pairing);
+  element_init_G2(token->g2r2k22, pairing);
   element_random(r2);
-  element_pow_zn(token->g2r2, g2, r2);
+  element_pow_zn(token->g2r2k22, g2, r2);
+  element_pow_zn(token->g2r2k22, token->g2r2k22, k22);
+  element_clear(r2);
 
   token->initialized = true;
   return ERROR_NONE;
@@ -97,12 +101,12 @@ int init_ore_token(ore_token token, ore_params params, pairing_t pairing,\
  * @param buf     The input in a byte array, encoded in little-endian
  * @param buflen  The length of the byte array input
  * @param pairing pairing
- * @param k       The data key
+ * @param k1      The prf key
  *
  * @return ERROR_NONE on success
  */
 static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
-                           pairing_t pairing, element_t k) {
+                           pairing_t pairing, element_t k1) {
   if (!ctxt->initialized) {
     return ERROR_CTXT_NOT_INITIALIZED;
   }
@@ -122,6 +126,9 @@ static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
   // initial the output buffer for prf
   byte prf_output_buf[SHA256_OUTPUT_BYTES];
   byte prf_input_buf_2[SHA256_OUTPUT_BYTES];
+  byte key[PRF_OUTPUT_BYTES];
+  memset(key, 0, sizeof(key));
+  element_to_bytes(key, k1);
 
   // drop any extra bytes that have been provided
   if (buflen >= nbytes) {
@@ -136,12 +143,7 @@ static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
   mpz_t SHA_256_MAX;
   mpz_init(SHA_256_MAX);
   mpz_init_set_str(SHA_256_MAX, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF\
-                   FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",16);
-
-  // Precompute
-  element_t g1r1k;
-  element_init_G1(g1r1k, pairing);
-  element_pow_zn(g1r1k, ctxt->g1r1, k);
+                                 FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",16);
 
 
   element_t prf_result;
@@ -172,7 +174,7 @@ static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
     // mask indicates whether this bit is 1 or 0
     byte mask = msgbuf[byteind] & (1 << ((7 - (i + offset)) % 8));
 
-    sha_256(prf_output_buf, sizeof(prf_output_buf),
+    HMAC_SHA256(prf_output_buf, sizeof(prf_output_buf), key,
             prf_input_buf, sizeof(prf_input_buf));
 
     // first output as the second inout
@@ -189,12 +191,12 @@ static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
 
     // Compute the second hash and use the result to generate elements in Zr 
     // to be used in the subsequent modular exponential operation, covering the result of the first prf operation
-    sha_256(prf_output_buf, sizeof(prf_output_buf),
+    HMAC_SHA256(prf_output_buf, sizeof(prf_output_buf), key,
             prf_input_buf_2, sizeof(prf_input_buf_2));
 
     // hash to Zr
     element_from_hash(prf_result, prf_output_buf, 32);
-    element_pow_zn(ctxt->bit_ctxt[permute[i]->index], g1r1k, prf_result);
+    element_pow_zn(ctxt->bit_ctxt[permute[i]->index], ctxt->g1r1k21, prf_result);
 
     // add the current bit of the message to the running prefix
     value[byteind] |= mask;
@@ -206,15 +208,14 @@ static int _ore_encryption(ore_ciphertext ctxt, byte *buf, uint32_t buflen,\
   free(permute);
   mpz_clear(SHA_to_mpz);
   mpz_clear(SHA_256_MAX);
-  element_clear(g1r1k);
   element_clear(prf_result);
 
   return ERROR_NONE;
 }
 
 int ore_encryption(ore_ciphertext ctxt, uint64_t msg, pairing_t pairing,\
-                   element_t k) {
-  return _ore_encryption(ctxt, (byte *)&msg, sizeof(msg), pairing, k);
+                   element_t k1) {
+  return _ore_encryption(ctxt, (byte *)&msg, sizeof(msg), pairing, k1);
 }
 
 /**
@@ -228,12 +229,12 @@ int ore_encryption(ore_ciphertext ctxt, uint64_t msg, pairing_t pairing,\
  * @param token    The ciphertext to store the encryption
  * @param buf      The input in a byte array, encoded in little-endian
  * @param buflen   The length of the byte array input
- * @param k        The data key
+ * @param k1       The prf key
  *
  * @return ERROR_NONE on success
  */
 static int _ore_token_gen(ore_token token, byte *buf, uint32_t buflen,\
-                          pairing_t pairing, element_t k) {
+                          pairing_t pairing, element_t k1) {
   if (!token->initialized) {
     return ERROR_TOKEN_NOT_INITIALIZED;
   }
@@ -248,6 +249,9 @@ static int _ore_token_gen(ore_token token, byte *buf, uint32_t buflen,\
   byte msgbuf[nbytes];
   byte prf_output_buf[SHA256_OUTPUT_BYTES];
   byte prf_input_buf_2[SHA256_OUTPUT_BYTES];
+  byte key[PRF_OUTPUT_BYTES];
+  memset(key, 0, sizeof(key));
+  element_to_bytes(key, k1);
 
   // drop any extra bytes that have been provided
   if (buflen >= nbytes) {
@@ -262,13 +266,8 @@ static int _ore_token_gen(ore_token token, byte *buf, uint32_t buflen,\
   mpz_init(SHA_to_mpz);
   mpz_t SHA_256_MAX;
   mpz_init(SHA_256_MAX);
-  mpz_init_set_str (SHA_256_MAX, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF\
-                                  FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 16);
-
-  // precompute
-  element_t g2r2k;
-  element_init_G2(g2r2k, pairing);
-  element_pow_zn(g2r2k, token->g2r2, k);
+  mpz_init_set_str(SHA_256_MAX, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF\
+                                 FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 16);
 
   element_t prf_result;
   element_init_Zr(prf_result, pairing);
@@ -292,44 +291,44 @@ static int _ore_token_gen(ore_token token, byte *buf, uint32_t buflen,\
 
     byte mask = msgbuf[byteind] & (1 << ((7 - (i + offset)) % 8));
 
-    sha_256(prf_output_buf, sizeof(prf_output_buf),
+    HMAC_SHA256(prf_output_buf, sizeof(prf_output_buf), key,
             prf_input_buf, sizeof(prf_input_buf));
 
     if (mask > 0) {
       memcpy(prf_input_buf_2, prf_output_buf, 32);
-      sha_256(prf_output_buf, sizeof(prf_output_buf),
+      HMAC_SHA256(prf_output_buf, sizeof(prf_output_buf), key,
               prf_input_buf_2, sizeof(prf_input_buf_2));
       element_from_hash(prf_result, prf_output_buf, 32);
 
-      element_pow_zn(token->token_bit[permute[i]->index]->minus_one, g2r2k, prf_result);
+      element_pow_zn(token->token_bit[permute[i]->index]->minus_one, token->g2r2k22, prf_result);
 
       mpz_import(SHA_to_mpz, 32, 1, 1, -1, 0, prf_input_buf_2);
       mpz_add_ui(SHA_to_mpz, SHA_to_mpz, 2);
       mpz_and(SHA_to_mpz, SHA_to_mpz, SHA_256_MAX);
       mpz_export(prf_input_buf_2, NULL, 1, 1, -1, 0, SHA_to_mpz);
-      sha_256(prf_output_buf, sizeof(prf_output_buf),
+      HMAC_SHA256(prf_output_buf, sizeof(prf_output_buf), key,
               prf_input_buf_2, sizeof(prf_input_buf_2));
       element_from_hash(prf_result, prf_output_buf, 32);
-      element_pow_zn(token->token_bit[permute[i]->index]->add_one, g2r2k, prf_result);
+      element_pow_zn(token->token_bit[permute[i]->index]->add_one, token->g2r2k22, prf_result);
     } else {
       mpz_import(SHA_to_mpz, 32, 1, 1, -1, 0, prf_output_buf);
       mpz_add_ui(SHA_to_mpz, SHA_to_mpz, 1);
       mpz_and(SHA_to_mpz, SHA_to_mpz, SHA_256_MAX);
       mpz_export(prf_input_buf_2, NULL, 1, 1, -1, 0, SHA_to_mpz);
-      sha_256(prf_output_buf, sizeof(prf_output_buf),
+      HMAC_SHA256(prf_output_buf, sizeof(prf_output_buf), key,
               prf_input_buf_2, sizeof(prf_input_buf_2));
       element_from_hash(prf_result, prf_output_buf, 32);
 
-      element_pow_zn(token->token_bit[permute[i]->index]->add_one , g2r2k, prf_result);
+      element_pow_zn(token->token_bit[permute[i]->index]->add_one , token->g2r2k22, prf_result);
 
       mpz_sub_ui(SHA_to_mpz, SHA_to_mpz, 2);
       mpz_and(SHA_to_mpz, SHA_to_mpz, SHA_256_MAX);
       mpz_export(prf_input_buf_2, NULL, 1, 1, -1, 0, SHA_to_mpz);
-      sha_256(prf_output_buf, sizeof(prf_output_buf),
+      HMAC_SHA256(prf_output_buf, sizeof(prf_output_buf), key,
               prf_input_buf_2, sizeof(prf_input_buf_2));
       element_from_hash(prf_result, prf_output_buf, 32);
 
-      element_pow_zn(token->token_bit[permute[i]->index]->minus_one , g2r2k, prf_result);
+      element_pow_zn(token->token_bit[permute[i]->index]->minus_one , token->g2r2k22, prf_result);
     }
     
     // add the current bit of the message to the running prefix
@@ -342,14 +341,13 @@ static int _ore_token_gen(ore_token token, byte *buf, uint32_t buflen,\
   free(permute);
   mpz_clear(SHA_to_mpz);
   mpz_clear(SHA_256_MAX);
-  element_clear(g2r2k);
   element_clear(prf_result);
 
   return ERROR_NONE;
 }
 
-int ore_token_gen(ore_token token, uint64_t msg, pairing_t pairing, element_t k) {
-  return _ore_token_gen(token, (byte *)&msg, sizeof(msg), pairing, k);
+int ore_token_gen(ore_token token, uint64_t msg, pairing_t pairing, element_t k1) {
+  return _ore_token_gen(token, (byte *)&msg, sizeof(msg), pairing, k1);
 }
 
 int ore_compare(int *result_p, ore_ciphertext ctxt, ore_token token, pairing_t pairing) {
@@ -381,7 +379,7 @@ int ore_compare(int *result_p, ore_ciphertext ctxt, ore_token token, pairing_t p
 
   // preprocessing
   pairing_pp_t pp;
-  pairing_pp_init(pp, ctxt->g1r1, pairing);
+  pairing_pp_init(pp, ctxt->g1r1k21, pairing);
   // temporarily store pairing results for token and ctxt.
   ore_token_bit token_result[nbits];
   for (uint32_t i = 0; i < nbits; i++) {
@@ -394,7 +392,7 @@ int ore_compare(int *result_p, ore_ciphertext ctxt, ore_token token, pairing_t p
 
   bool break_flag = false;
   for (uint32_t i = 0; i < nbits; i++) {
-    pairing_apply(temp1, ctxt->bit_ctxt[i], token->g2r2, pairing);
+    pairing_apply(temp1, ctxt->bit_ctxt[i], token->g2r2k22, pairing);
     for (uint32_t j = 0; j < nbits; j++) {
       if (!element_cmp(temp1, token_result[j]->add_one)) {
         res = 1;
@@ -432,7 +430,7 @@ int clear_ore_ciphertext(ore_ciphertext ctxt) {
   for (uint32_t i = 0; i < nbits; i++) {
     element_clear(ctxt->bit_ctxt[i]);
   }
-  element_clear(ctxt->g1r1);
+  element_clear(ctxt->g1r1k21);
 
   return ERROR_NONE;
 }
@@ -446,7 +444,7 @@ int clear_ore_token(ore_token token) {
     element_clear(token->token_bit[i]->add_one);
     element_clear(token->token_bit[i]->minus_one);
   }
-  element_clear(token->g2r2);
+  element_clear(token->g2r2k22);
 
   return ERROR_NONE;
 }

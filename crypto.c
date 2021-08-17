@@ -18,3 +18,15 @@ int sha_256(byte* dst, uint32_t dstlen, byte* src, uint32_t srclen) {
 
   return ERROR_NONE;
 }
+
+// HMAC_SHA256 as the hmac
+int HMAC_SHA256(byte* dst, uint32_t dstlen, byte* key, byte* src, uint32_t srclen) {
+  if (dstlen != PRF_OUTPUT_BYTES) {
+    return ERROR_DSTLEN_INVALID;
+  }
+
+  uint32_t outlen;
+  HMAC(EVP_sha256(), key, sizeof(key), src, srclen, dst, &outlen);
+
+  return ERROR_NONE;
+}

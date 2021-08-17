@@ -28,9 +28,13 @@ int main(int argc, char **argv) {
   pairing_t pairing;
   element_t g1, g2;
   ERR_CHECK(init_pairing(pairing, g1, g2));
-  element_t k;
-  element_init_Zr(k, pairing);
-  element_random(k);
+  element_t k1, k21, k22;
+  element_init_Zr(k1, pairing);
+  element_init_Zr(k21, pairing);
+  element_init_Zr(k22, pairing);
+  element_random(k1);
+  element_random(k21);
+  element_random(k22);
   uint64_t byte_len_of_ctxt = 0;
   uint64_t byte_len_of_token = 0;
 
@@ -39,12 +43,12 @@ int main(int argc, char **argv) {
     ERR_CHECK(init_ore_params(params, NBITS[i]));
 
     ore_ciphertext ctxt;
-    ERR_CHECK(init_ore_ciphertext(ctxt, params, pairing, g1));
+    ERR_CHECK(init_ore_ciphertext(ctxt, params, pairing, g1, k21));
 
     clock_t start_time = clock();
     int enc_trials = N_ENC_TRIALS / (i + 1);
     for (int j = 0; j < enc_trials; j++) {
-      ERR_CHECK(ore_encryption(ctxt, rand(), pairing, k));
+      ERR_CHECK(ore_encryption(ctxt, rand(), pairing, k1));
     }
     byte_len_of_ctxt = sizeof(bool) + sizeof(ore_params) + sizeof(element_t)*(NBITS[i] + 1);
     double enc_time_elapsed = (double)(clock() - start_time) / CLOCKS_PER_SEC;
@@ -53,11 +57,11 @@ int main(int argc, char **argv) {
     int res;
 
     ore_token token;
-    ERR_CHECK(init_ore_token(token, params, pairing, g2));
+    ERR_CHECK(init_ore_token(token, params, pairing, g2, k22));
     int token_gen_trials = N_TGEN_TRIALS / (i + 1);
     start_time = clock();
     for (int j = 0; j < token_gen_trials; j++) {
-      ERR_CHECK(ore_token_gen(token, rand(), pairing, k));
+      ERR_CHECK(ore_token_gen(token, rand(), pairing, k1));
     }
     double token_gen_time_elapsed = (double)(clock() - start_time) / CLOCKS_PER_SEC;
     double token_gen_time = token_gen_time_elapsed / token_gen_trials * 1000;
@@ -80,7 +84,9 @@ int main(int argc, char **argv) {
     ERR_CHECK(clear_ore_token(token));
   }
 
-  element_clear(k);
+  element_clear(k1);
+  element_clear(k21);
+  element_clear(k22);
   ERR_CHECK(clear_pairing(pairing, g1, g2));
   return 0;
 }
