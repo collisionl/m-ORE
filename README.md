@@ -1,5 +1,7 @@
-# ORE with Multi-User
+# m-ORE
+This is the implementation of the multi-client order-revealing encryption (m-ORE) schemes in the paper: [Efficient Multi-client Order-Revealing Encryption and Its Applications](https://link.springer.com/chapter/10.1007%2F978-3-030-88428-4_3).
 
+If you have any questions, please contact me at: <cylv_1@stu.xidian.edu.cn>. 
 ## Prerequisites ##
 Required environment
 - [OpenSSL-1.1.1](https://www.openssl.org/source/)
